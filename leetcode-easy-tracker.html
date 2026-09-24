@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LeetCode Easy — Progress Tracker</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #171a23;
+    --border: #262b38;
+    --text: #e7e9ee;
+    --muted: #8b90a0;
+    --accent: #ffa116;
+    --green: #2cbb5d;
+    --done-bg: #10231a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+
+  .progress-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+  .progress-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .progress-top .count { font-weight: 600; font-size: 1.1rem; }
+  .progress-top .pct { color: var(--accent); font-weight: 600; }
+  .bar-bg {
+    background: #262b38;
+    border-radius: 8px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  input[type="text"] {
+    flex: 1;
+    min-width: 140px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+  }
+  select, button {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  button.reset { border-color: #4a2020; color: #e88; }
+  button:hover { border-color: var(--accent); }
+
+  .category {
+    margin-top: 22px;
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-left: 4px;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .item.done {
+    background: var(--done-bg);
+    border-color: #1e3d2b;
+  }
+  .item.hidden { display: none; }
+
+  .item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: var(--green);
+    cursor: pointer;
+  }
+  .item .name {
+    flex: 1;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .item.done .name { color: var(--muted); text-decoration: line-through; }
+
+  .item a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    border: 1px solid #3a3020;
+    padding: 4px 9px;
+    border-radius: 6px;
+  }
+  .item a:hover { background: #2a2010; }
+
+  .num { color: var(--muted); font-size: 0.8rem; width: 26px; flex-shrink: 0; }
+
+  .footer-note {
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: center;
+    margin-top: 30px;
+  }
+  .loading { text-align: center; color: var(--muted); padding: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🟩 LeetCode — Easy Problems</h1>
+  <div class="sub">Track your progress through commonly-asked Easy difficulty problems.</div>
+
+  <div class="progress-card">
+    <div class="progress-top">
+      <span class="count"><span id="doneCount">0</span> / <span id="totalCount">0</span> solved</span>
+      <span class="pct" id="pctLabel">0%</span>
+    </div>
+    <div class="bar-bg"><div class="bar-fill" id="barFill"></div></div>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search problems...">
+    <select id="filter">
+      <option value="all">All</option>
+      <option value="todo">To do</option>
+      <option value="done">Solved</option>
+    </select>
+    <button class="reset" id="resetBtn">Reset progress</button>
+  </div>
+
+  <div id="list"><div class="loading">Loading...</div></div>
+  <div class="footer-note">Progress is saved automatically on this device.</div>
+</div>
+
+<script>
+const problems = [
+  { cat: "Arrays & Hashing", id: 1, name: "Two Sum" },
+  { cat: "Arrays & Hashing", id: 26, name: "Remove Duplicates from Sorted Array" },
+  { cat: "Arrays & Hashing", id: 27, name: "Remove Element" },
+  { cat: "Arrays & Hashing", id: 66, name: "Plus One" },
+  { cat: "Arrays & Hashing", id: 88, name: "Merge Sorted Array" },
+  { cat: "Arrays & Hashing", id: 118, name: "Pascal's Triangle" },
+  { cat: "Arrays & Hashing", id: 121, name: "Best Time to Buy and Sell Stock" },
+  { cat: "Arrays & Hashing", id: 169, name: "Majority Element" },
+  { cat: "Arrays & Hashing", id: 217, name: "Contains Duplicate" },
+  { cat: "Arrays & Hashing", id: 219, name: "Contains Duplicate II" },
+  { cat: "Arrays & Hashing", id: 268, name: "Missing Number" },
+  { cat: "Arrays & Hashing", id: 448, name: "Find All Numbers Disappeared in an Array" },
+  { cat: "Arrays & Hashing", id: 485, name: "Max Consecutive Ones" },
+  { cat: "Arrays & Hashing", id: 561, name: "Array Partition" },
+  { cat: "Arrays & Hashing", id: 566, name: "Reshape the Matrix" },
+  { cat: "Arrays & Hashing", id: 605, name: "Can Place Flowers" },
+  { cat: "Arrays & Hashing", id: 896, name: "Monotonic Array" },
+  { cat: "Arrays & Hashing", id: 1207, name: "Unique Number of Occurrences" },
+  { cat: "Arrays & Hashing", id: 1929, name: "Concatenation of Array" },
+  { cat: "Arrays & Hashing", id: 2215, name: "Find the Difference of Two Arrays" },
+
+  { cat: "Strings", id: 13, name: "Roman to Integer" },
+  { cat: "Strings", id: 14, name: "Longest Common Prefix" },
+  { cat: "Strings", id: 20, name: "Valid Parentheses" },
+  { cat: "Strings", id: 28, name: "Find the Index of the First Occurrence in a String" },
+  { cat: "Strings", id: 58, name: "Length of Last Word" },
+  { cat: "Strings", id: 125, name: "Valid Palindrome" },
+  { cat: "Strings", id: 242, name: "Valid Anagram" },
+  { cat: "Strings", id: 344, name: "Reverse String" },
+  { cat: "Strings", id: 383, name: "Ransom Note" },
+  { cat: "Strings", id: 387, name: "First Unique Character in a String" },
+  { cat: "Strings", id: 392, name: "Is Subsequence" },
+  { cat: "Strings", id: 415, name: "Add Strings" },
+  { cat: "Strings", id: 434, name: "Number of Segments in a String" },
+  { cat: "Strings", id: 459, name: "Repeated Substring Pattern" },
+  { cat: "Strings", id: 520, name: "Detect Capital" },
+  { cat: "Strings", id: 541, name: "Reverse String II" },
+  { cat: "Strings", id: 551, name: "Student Attendance Record I" },
+  { cat: "Strings", id: 557, name: "Reverse Words in a String III" },
+  { cat: "Strings", id: 709, name: "To Lower Case" },
+  { cat: "Strings", id: 771, name: "Jewels and Stones" },
+
+  { cat: "Two Pointers", id: 167, name: "Two Sum II - Input Array Is Sorted" },
+  { cat: "Two Pointers", id: 283, name: "Move Zeroes" },
+  { cat: "Two Pointers", id: 349, name: "Intersection of Two Arrays" },
+  { cat: "Two Pointers", id: 350, name: "Intersection of Two Arrays II" },
+  { cat: "Two Pointers", id: 977, name: "Squares of a Sorted Array" },
+
+  { cat: "Linked List", id: 21, name: "Merge Two Sorted Lists" },
+  { cat: "Linked List", id: 83, name: "Remove Duplicates from Sorted List" },
+  { cat: "Linked List", id: 141, name: "Linked List Cycle" },
+  { cat: "Linked List", id: 160, name: "Intersection of Two Linked Lists" },
+  { cat: "Linked List", id: 203, name: "Remove Linked List Elements" },
+  { cat: "Linked List", id: 206, name: "Reverse Linked List" },
+  { cat: "Linked List", id: 234, name: "Palindrome Linked List" },
+  { cat: "Linked List", id: 876, name: "Middle of the Linked List" },
+
+  { cat: "Stack & Queue", id: 225, name: "Implement Stack using Queues" },
+  { cat: "Stack & Queue", id: 232, name: "Implement Queue using Stacks" },
+  { cat: "Stack & Queue", id: 682, name: "Baseball Game" },
+  { cat: "Stack & Queue", id: 1047, name: "Remove All Adjacent Duplicates In String" },
+
+  { cat: "Binary Search", id: 35, name: "Search Insert Position" },
+  { cat: "Binary Search", id: 69, name: "Sqrt(x)" },
+  { cat: "Binary Search", id: 278, name: "First Bad Version" },
+  { cat: "Binary Search", id: 367, name: "Valid Perfect Square" },
+  { cat: "Binary Search", id: 374, name: "Guess Number Higher or Lower" },
+  { cat: "Binary Search", id: 704, name: "Binary Search" },
+  { cat: "Binary Search", id: 744, name: "Find Smallest Letter Greater Than Target" },
+
+  { cat: "Trees", id: 100, name: "Same Tree" },
+  { cat: "Trees", id: 101, name: "Symmetric Tree" },
+  { cat: "Trees", id: 104, name: "Maximum Depth of Binary Tree" },
+  { cat: "Trees", id: 108, name: "Convert Sorted Array to Binary Search Tree" },
+  { cat: "Trees", id: 110, name: "Balanced Binary Tree" },
+  { cat: "Trees", id: 111, name: "Minimum Depth of Binary Tree" },
+  { cat: "Trees", id: 112, name: "Path Sum" },
+  { cat: "Trees", id: 226, name: "Invert Binary Tree" },
+  { cat: "Trees", id: 235, name: "Lowest Common Ancestor of a BST" },
+  { cat: "Trees", id: 257, name: "Binary Tree Paths" },
+  { cat: "Trees", id: 543, name: "Diameter of Binary Tree" },
+  { cat: "Trees", id: 572, name: "Subtree of Another Tree" },
+  { cat: "Trees", id: 590, name: "N-ary Tree Postorder Traversal" },
+  { cat: "Trees", id: 606, name: "Construct String from Binary Tree" },
+  { cat: "Trees", id: 617, name: "Merge Two Binary Trees" },
+  { cat: "Trees", id: 700, name: "Search in a Binary Search Tree" },
+  { cat: "Trees", id: 897, name: "Increasing Order Search Tree" },
+  { cat: "Trees", id: 938, name: "Range Sum of BST" },
+  { cat: "Trees", id: 965, name: "Univalued Binary Tree" },
+  { cat: "Trees", id: 1207, name: "Binary Tree Preorder Traversal" },
+
+  { cat: "Dynamic Programming", id: 70, name: "Climbing Stairs" },
+  { cat: "Dynamic Programming", id: 121, name: "Best Time to Buy and Sell Stock (DP)" },
+  { cat: "Dynamic Programming", id: 198, name: "House Robber" },
+  { cat: "Dynamic Programming", id: 509, name: "Fibonacci Number" },
+  { cat: "Dynamic Programming", id: 746, name: "Min Cost Climbing Stairs" },
+
+  { cat: "Math & Bit Manipulation", id: 7, name: "Reverse Integer" },
+  { cat: "Math & Bit Manipulation", id: 9, name: "Palindrome Number" },
+  { cat: "Math & Bit Manipulation", id: 67, name: "Add Binary" },
+  { cat: "Math & Bit Manipulation", id: 136, name: "Single Number" },
+  { cat: "Math & Bit Manipulation", id: 172, name: "Factorial Trailing Zeroes" },
+  { cat: "Math & Bit Manipulation", id: 190, name: "Reverse Bits" },
+  { cat: "Math & Bit Manipulation", id: 191, name: "Number of 1 Bits" },
+  { cat: "Math & Bit Manipulation", id: 202, name: "Happy Number" },
+  { cat: "Math & Bit Manipulation", id: 231, name: "Power of Two" },
+  { cat: "Math & Bit Manipulation", id: 258, name: "Add Digits" },
+  { cat: "Math & Bit Manipulation", id: 263, name: "Ugly Number" },
+  { cat: "Math & Bit Manipulation", id: 326, name: "Power of Three" },
+  { cat: "Math & Bit Manipulation", id: 342, name: "Power of Four" },
+  { cat: "Math & Bit Manipulation", id: 415, name: "Add Strings (Math)" },
+  { cat: "Math & Bit Manipulation", id: 461, name: "Hamming Distance" },
+  { cat: "Math & Bit Manipulation", id: 476, name: "Number Complement" },
+
+  { cat: "Design & Misc", id: 155, name: "Min Stack" },
+  { cat: "Design & Misc", id: 384, name: "Shuffle an Array (easy variant)" },
+  { cat: "Design & Misc", id: 705, name: "Design HashSet" },
+  { cat: "Design & Misc", id: 706, name: "Design HashMap" },
+  { cat: "Design & Misc", id: 1512, name: "Number of Good Pairs" },
+];
+
+const STORAGE_KEY = "leetcode-easy-progress";
+let progress = {};
+
+function slugify(name) {
+  return name.toLowerCase()
+    .replace(/\(.*?\)/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+}
+
+function render() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  const search = document.getElementById("search").value.toLowerCase();
+  const filter = document.getElementById("filter").value;
+
+  let lastCat = null;
+  let doneCount = 0;
+
+  problems.forEach((p, idx) => {
+    const key = String(p.id) + "-" + slugify(p.name);
+    const isDone = !!progress[key];
+    if (isDone) doneCount++;
+
+    const matchesSearch = p.name.toLowerCase().includes(search) || String(p.id).includes(search);
+    const matchesFilter = filter === "all" || (filter === "done" && isDone) || (filter === "todo" && !isDone);
+    if (!matchesSearch || !matchesFilter) return;
+
+    if (p.cat !== lastCat) {
+      const catEl = document.createElement("div");
+      catEl.className = "category";
+      catEl.textContent = p.cat;
+      list.appendChild(catEl);
+      lastCat = p.cat;
+    }
+
+    const item = document.createElement("div");
+    item.className = "item" + (isDone ? " done" : "");
+
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = "#" + p.id;
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = isDone;
+    cb.addEventListener("change", () => toggle(key, cb.checked));
+
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = p.name;
+    name.addEventListener("click", () => { cb.checked = !cb.checked; toggle(key, cb.checked); });
+
+    const link = document.createElement("a");
+    link.href = "https://leetcode.com/problems/" + slugify(p.name.replace(/\(.*?\)/g, "")) + "/";
+    link.target = "_blank";
+    link.textContent = "Open ↗";
+
+    item.appendChild(num);
+    item.appendChild(cb);
+    item.appendChild(name);
+    item.appendChild(link);
+    list.appendChild(item);
+  });
+
+  document.getElementById("totalCount").textContent = problems.length;
+  document.getElementById("doneCount").textContent = doneCount;
+  const pct = problems.length ? Math.round((doneCount / problems.length) * 100) : 0;
+  document.getElementById("pctLabel").textContent = pct + "%";
+  document.getElementById("barFill").style.width = pct + "%";
+}
+
+async function toggle(key, value) {
+  progress[key] = value;
+  render();
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.error("Failed to save progress", e);
+  }
+}
+
+async function resetProgress() {
+  if (!confirm("Reset all progress? This cannot be undone.")) return;
+  progress = {};
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.error("Failed to reset progress", e);
+  }
+  render();
+}
+
+async function init() {
+  try {
+    const result = await window.storage.get(STORAGE_KEY);
+    if (result && result.value) {
+      progress = JSON.parse(result.value);
+    }
+  } catch (e) {
+    progress = {};
+  }
+  render();
+}
+
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("filter").addEventListener("change", render);
+document.getElementById("resetBtn").addEventListener("click", resetProgress);
+
+init();
+</script>
+</body>
+</html>
